@@ -1,0 +1,71 @@
+services:
+  zabbix_web:
+    image: zabbix/zabbix-web-nginx-pgsql:alpine-7.0-latest
+    container_name: {{ zabbix_web_name }}
+    restart: unless-stopped
+    ports:
+      - "{{ web_port }}:8080"
+    environment:
+      - ZBX_SERVER_HOST={{ zabbix_server_name }}
+      - ZBX_SERVER_PORT={{ zabbix_server_port }}
+      - DB_SERVER_HOST={{ db_server_host }}
+      - DB_SERVER_PORT={{ db_server_port }}
+      - DB_SERVER_DBNAME={{ db_server_dbname }}
+      - POSTGRES_USER={{ postgres_user }}
+      - POSTGRES_PASSWORD={{ postgres_password }}
+      - ZBX_SKIP_DB_INIT=true
+    depends_on:
+      - zabbix_server
+    networks:
+      - {{ docker_network }}
+
+  zabbix_server:
+    image: zabbix/zabbix-server-pgsql:alpine-7.0-latest
+    container_name: {{ zabbix_server_name }}
+    restart: unless-stopped
+    environment:
+      - DB_SERVER_HOST={{ db_server_host }}
+      - DB_SERVER_PORT={{ db_server_port }}
+      - DB_SERVER_DBNAME={{ db_server_dbname }}
+      - POSTGRES_USER={{ postgres_user }}
+      - POSTGRES_PASSWORD={{ postgres_password }}
+      - ZBX_SKIP_DB_INIT=true
+      - DB_DATABASE={{ db_server_dbname }}
+    volumes:
+      - {{ base_path }}/zabbix_export:/var/lib/zabbix/export:rw
+      - {{ base_path }}/zabbix_snmptraps:/var/lib/zabbix/snmptraps:rw
+      - {{ base_path }}/zabbix_alertscripts:/usr/lib/zabbix/alertscripts:rw
+    networks:
+      - {{ docker_network }}
+
+  nodo_grafana:
+    image: grafana/grafana-oss:latest
+    container_name: {{ grafana_name }}
+    restart: unless-stopped
+    ports:
+      - "{{ grafana_port }}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD={{ grafana_admin_password }}
+    volumes:
+      - {{ base_path }}/grafana_data:/var/lib/grafana:rw
+    networks:
+      - {{ docker_network }}
+
+  zabbix-agent2:
+    image: zabbix/zabbix-agent2:alpine-7.0-latest
+    networks:
+      - {{ docker_network }}
+    container_name: {{ zabbix_agent_name }}
+    restart: unless-stopped
+    privileged: true
+    entrypoint: ["/usr/sbin/zabbix_agent2", "-c", "/etc/zabbix/zabbix_agent2.conf", "-f"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - {{ base_path }}/zabbix_agent2.conf:/etc/zabbix/zabbix_agent2.conf:ro
+
+networks:
+  {{ docker_network }}:
+    external: true

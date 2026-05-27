@@ -1,0 +1,30 @@
+# --- Secretos y Credenciales (NO SUBIR) ---
+.env
+ansible/group_vars/all.yml
+
+# --- Directorios de Datos (NO SUBIR) ---
+# Datos de Zabbix y Grafana
+grafana_data/
+zabbix_export/
+zabbix_snmptraps/
+zabbix_alertscripts/
+
+# --- Backups ---
+backups/
+
+# --- Archivos generados dinámicamente ---
+# El compose se genera con la plantilla Jinja2, no debe estar en el repo
+docker-compose.yml
+
+# --- Infraestructura ---
+# El inventario local contiene IPs privadas de tu red, no debe subirse
+ansible/inventory.ini
+
+# --- Artefactos, Logs y Caché ---
+*.log
+*.tmp
+*.pyc
+__pycache__/
+.DS_Store
+.ansible-cache/
+.pytest_cache/

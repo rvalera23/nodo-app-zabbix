@@ -1,0 +1,38 @@
+---
+# ==============================================================================
+# PLANTILLA DE CONFIGURACIÓN (all.yml.example)
+# Copia este archivo como 'all.yml' y ajusta los valores según tu entorno.
+# NO SUBAS EL ARCHIVO 'all.yml' AL REPOSITORIO PÚBLICO.
+# ==============================================================================
+
+# --- Rutas de Montaje (Protocolo NODO) ---
+base_path: "/opt/servicios/nodo-app-zabbix"
+
+# --- Nombres de Contenedores ---
+zabbix_web_name: "zabbix_web"
+zabbix_server_name: "zabbix_server"
+grafana_name: "grafana_server"
+zabbix_agent_name: "zabbix_agent2"
+
+# --- Puertos de Servicios ---
+web_port: "8080"
+grafana_port: "3000"
+zabbix_server_port: "10051"
+
+# --- Conexión a DB Central (Nodo DB Core) ---
+db_server_host: "ip_servidor_db"
+db_server_port: "5432"
+db_server_dbname: "zabbix"
+postgres_user: "usuario_db"
+postgres_password: "password_db"
+
+# --- Credenciales de Administración ---
+grafana_admin_password: "admin_password"
+
+# --- Configuración de Red ---
+docker_network: "nodo_net"
+
+# --- Configuración de Backups ---
+backup_retention_days: 7
+backup_cron_hour: "4"
+backup_cron_minute: "00"

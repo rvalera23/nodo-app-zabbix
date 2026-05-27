@@ -1,0 +1,100 @@
+---
+- name: Instalación y Configuración del Nodo Zabbix + Grafana
+  hosts: all
+  become: yes
+  vars_files:
+    - group_vars/all.yml
+  tasks:
+
+    - name: FASE 1 - Instalacion profesional de Tailscale
+      block:
+        - name: Asegurar dependencias necesarias
+          apt: { name: [curl, gnupg], state: present, update_cache: yes }
+        - name: Descargar llave GPG de Tailscale
+          get_url:
+            url: https://pkgs.tailscale.com/stable/debian/{{ ansible_distribution_release }}.noarmor.gpg
+            dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+            mode: '0644'
+        - name: Añadir repositorio de Tailscale
+          apt_repository:
+            repo: "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/debian {{ ansible_distribution_release }} main"
+            state: present
+            update_cache: yes
+        - name: Instalar Tailscale
+          apt: { name: tailscale, state: latest }
+
+    - name: FASE 2 - Instalacion de Docker y dependencias
+      apt:
+        name: [docker.io, docker-compose, python3-pip, curl, git, net-tools, ufw]
+        state: present
+        update_cache: yes
+
+    - name: FASE 2.1 - Configuración de Firewall (UFW)
+      block:
+        - name: Asegurar acceso SSH
+          ufw: { rule: allow, port: '22', proto: tcp }
+        - name: Permitir puertos de Zabbix y Grafana
+          ufw: { rule: allow, port: '{{ item }}', proto: tcp }
+          with_items: ["{{ web_port }}", "{{ grafana_port }}"]
+        - name: Habilitar UFW
+          ufw: { state: enabled }
+
+    - name: FASE 3 - Creacion de carpetas de persistencia
+      file:
+        path: "{{ base_path }}/{{ item }}"
+        state: directory
+        mode: '0775'
+        owner: "1450" # Tu UID de Zabbix/Grafana
+        group: "root"
+      with_items:
+        - grafana_data
+        - zabbix_export
+        - zabbix_snmptraps
+        - zabbix_alertscripts
+
+    - name: FASE 4 - Estructura jerárquica de backups
+      file:
+        path: "{{ base_path }}/backups/{{ item }}"
+        state: directory
+        mode: '0775'
+        owner: "1450"
+        group: "root"
+        recurse: yes
+      with_items: ['zabbix_files', 'grafana_files']
+
+    - name: FASE 5 - Asegurar Redes
+      docker_network:
+        name: "nodo_net"
+        state: present
+
+    - name: FASE 6 - Generar configuración Docker Compose (Jinja2)
+      template:
+        src: templates/docker-compose.yml.j2
+        dest: "{{ base_path }}/docker-compose.yml"
+        mode: '0644'
+
+    - name: FASE 7 - Pull de imagenes
+      shell: "docker compose pull"
+      args:
+        chdir: "{{ base_path }}"
+
+    - name: FASE 8 - Levantar los contenedores
+      shell: |
+        cd {{ base_path }}
+        docker compose down
+        docker compose up -d --force-recreate
+
+    - name: FASE 9 - Automatización de backups
+      block:
+        - name: Desplegar script de backup
+          template:
+            src: templates/backup.sh.j2
+            dest: /usr/local/bin/nodo-backup.sh
+            mode: '0755'
+        - name: Asegurar tarea programada en Cron
+          cron:
+            name: "Nodo Daily Backup"
+            minute: "{{ backup_cron_minute }}"
+            hour: "{{ backup_cron_hour }}"
+            job: "/usr/local/bin/nodo-backup.sh"
+            state: present

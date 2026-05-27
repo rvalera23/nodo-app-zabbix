@@ -1,0 +1,11 @@
+#!/bin/bash
+# Backup Local de Archivos (Zabbix + Grafana)
+BACKUP_PATH="{{ base_path }}/backups"
+TIMESTAMP=$(date +%Y%m%d_%H%M)
+
+# Comprimir carpetas críticas
+tar -czf $BACKUP_PATH/zabbix_files/zabbix_data_$TIMESTAMP.tar.gz {{ base_path }}/zabbix_export {{ base_path }}/zabbix_snmptraps {{ base_path }}/zabbix_alertscripts
+tar -czf $BACKUP_PATH/grafana_files/grafana_data_$TIMESTAMP.tar.gz {{ base_path }}/grafana_data
+
+# Limpieza según RETENTION_DAYS
+find $BACKUP_PATH -type f -name "*.tar.gz" -mtime +{{ backup_retention_days | default(7) }} -delete
